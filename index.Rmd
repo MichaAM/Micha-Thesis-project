@@ -1,9 +1,12 @@
 ---
-title: "Micha's Thesis analysis"
+title: "Thesis Analysis results report"
 output: html_document
 ---
 
-# **Thesis Analysis results report**
+
+## By Micha Amsalem
+
+## July 2020
 
 This is a thesis analysis report. It will help present a reproducible analysis using R markdown & GitHub pages. The analysis is using a Difference-in-Differences model to evaluate the effect of a treatment. 
 
