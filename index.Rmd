@@ -10,3 +10,394 @@ output: html_document
 
 This is a thesis analysis report. It will help present a reproducible analysis using R markdown & GitHub pages. The analysis is using a Difference-in-Differences model to evaluate the effect of a treatment. 
 
+
+### Getting R ready for analysis 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{R directory & files, warning=TRUE}
+setwd("C:/Users/user/Documents/GitHub/Micha-Thesis-project")
+clean_full_df <- read.csv("clean_full_df.csv")
+```
+
+Adding relevant packages from R library: 
+
+```{r packages, include = FALSE}
+library(tidyverse)
+library(tinytex)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+library(stargazer)
+library(plm)
+library(gplots)
+```
+
+
+### The database
+
+The data base includes all merged files, clean relevant variables and student's scores in Z-score. First step will be. 
+### Database dimensions: 
+```{r}
+dim(clean_full_df)
+```
+171639 observations and 30 variables 
+
+### Summarizing variables:
+```{r summary, include=TRUE}
+summary(clean_full_df)
+```
+
+Next, use str function for clean overlook on variables: 
+```{r}
+str(clean_full_df)
+```
+
+
+# Analysis 
+First analysis  will make use of the general diff-in-diff regression for evaluating the difference between treatment and control groups, before and after the treatment, without fixed effects, additional variables or splitting database. The regression will estimate did estimator for each of the exam's subjects the students took part in: Hebrew, Math, English and Arabic for the years 2008-2009 and for the year 2015-2016. 
+
+## General DID astimate 
+```{r general regression}
+didreg.heb <- lm(heb.zscore ~ treat + after + did, data = clean_full_df)
+summary(didreg.heb)
+
+didreg.mat <- lm(mat.zscore ~ treat + after + did, data = clean_full_df)
+summary(didreg.mat)
+
+didreg.eng <- lm(eng.zscore ~ treat + after + did, data = clean_full_df)
+summary(didreg.eng)
+
+didreg.arb <- lm(arb.zscore ~ treat + after + did, data = clean_full_df)
+summary(didreg.arb)
+```
+
+General DID analysis summary table: 
+```{r general reg report, warning=FALSE}
+stargazer(didreg.heb, didreg.mat, didreg.eng, didreg.arb, title="DiD Regression Results", align=TRUE, type = "text")
+```
+
+
+In the table above, did estimators for Hebrew, Math and Arabic average scores are significant. English is not significant.
+
+# Spliting by school's sectors - Jewish sector vs Arab sector  
+
+It is usually acceptable showing those results by splitting the database by language - Hebrew speaking schools and Arabic speaking schools. This split is done by using the CODE_MIGZAR column in the database. 
+
+```{r split function }
+clean_full_df_heb <- clean_full_df %>%
+  filter(CODE_MIGZAR == "1")
+clean_full_df_arb <- clean_full_df %>%
+  filter(CODE_MIGZAR != "1")
+```
+
+So, after the split, We produce those 2 tables that sums the did regression analysis results by the 2 data sets:
+
+## Hebrew speaking schools - Jewish sector
+
+```{r Hebrew speaking reg}
+didreg.heb.Hebrew <- lm(heb.zscore ~ treat + after + did, data = clean_full_df_heb)
+summary(didreg.heb.Hebrew)
+
+didreg.mat.Hebrew <- lm(mat.zscore ~ treat + after + did, data = clean_full_df_heb)
+summary(didreg.mat.Hebrew)
+
+didreg.eng.Hebrew <- lm(eng.zscore ~ treat + after + did, data = clean_full_df_heb)
+summary(didreg.eng.Hebrew)
+```
+
+## Summary analysis table for Hebrew speaking 
+```{r hebrew speaking table, warning=FALSE}
+stargazer(didreg.heb.Hebrew, didreg.mat.Hebrew, didreg.eng.Hebrew, title="DiD Regression Results for Hebrew", align=TRUE, type = "text")
+```
+In the table we can see that, for hebrew speaking schools only, the did coefficients are significant for each subject. In English it looks like that the the effect of the treatment is negative. This result can change when adding fixed effects or additional variables. 
+
+
+## Arabic speaking schools - Arabic sector
+Now, we test the same regression on the Arabic speaking sector only
+```{r Arabic speaking reg}
+didreg.mat.Arabic <- lm(mat.zscore ~ treat + after + did, data = clean_full_df_arb)
+summary(didreg.mat.Arabic)
+
+didreg.eng.Arabic <- lm(eng.zscore ~ treat + after + did, data = clean_full_df_arb)
+summary(didreg.eng.Arabic)
+
+didreg.arb.Arabic <- lm(arb.zscore ~ treat + after + did, data = clean_full_df_arb)
+summary(didreg.arb.Arabic)
+```
+```{r warning=FALSE}
+stargazer(didreg.arb.Arabic, didreg.mat.Arabic, didreg.eng.Arabic, title="DiD Regression Results for Arabic", align=TRUE, type = "text")
+
+```
+We can see that all 3 coefficients of did is positive and significant for the level of 1%. It reflects a positive effect of the treatment on the Arabic speaking sector. 
+
+## Adding fixed effects to the DID regression 
+I use 2 fixed effects in the regression: Time fixed effect by dummy variables and school fixed effect by "plm" function. This analysis will remove any effect which is due to years unobserved effects and schools unobserved characteristics. 
+
+Creat the dummy variables:
+
+```{r}
+clean_full_df$dummy_year_2008 <- ifelse(clean_full_df$SHNAT_LIMUD == "2008", "1", "0")
+clean_full_df$dummy_year_2009 <- ifelse(clean_full_df$SHNAT_LIMUD  == "2009", "1", "0")
+clean_full_df$dummy_year_2015 <- ifelse(clean_full_df$SHNAT_LIMUD  == "2015", "1", "0")
+clean_full_df$dummy_year_2016 <- ifelse(clean_full_df$SHNAT_LIMUD  == "2016", "1", "0")
+```
+ 
+
+
+## Run the DID with Fixed Effects by sector(Hebrew/Arabic) 
+
+### DID with Fixed Effects for the Jewish sector :
+
+```{r}
+FE.heb.Hebrew <- plm(heb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.heb.Hebrew)
+
+FE.mat.Hebrew <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Hebrew)
+
+FE.eng.Hebrew <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Hebrew)
+```
+Fixed effects summary table for Jewish sector:
+```{r warning=FALSE}
+stargazer(FE.heb.Hebrew, FE.mat.Hebrew, FE.eng.Hebrew, title="Year & School fixed effect did regression -  Hebrew", align=TRUE, type = "text")
+```
+
+
+### DID with Fixed Effects for the Arabic sector :
+
+```{r}
+FE.arb.Arabic <- plm(arb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.Arabic)
+
+FE.mat.Arabic <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Arabic)
+
+FE.eng.Arabic <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = clean_full_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Arabic)
+```
+Fixed effects summary table for Arabic sector:
+
+```{R warning=FALSE}
+stargazer(FE.arb.Arabic, FE.mat.Arabic, FE.eng.Arabic, title="Year & School fixed effect did regression -  Arabic", align=TRUE, type = "text")
+```
+
+### Tidy the database to final.df
+```{r}
+final_df <- clean_full_df %>%
+  select(CODE_MOSAD, SHNAT_LIMUD, CODE_ZEHUT_TALMID, heb.zscore, mat.zscore, eng.zscore, arb.zscore,
+         CODE_MIN, SHNOT_LIMUD_AV, SHNOT_LIMUD_EM, dummy_av_88, dummy_em_88, CODE_MIGZAR, CODE_MACHOZ_GEOGRAFI,
+         treat, after, did, mean_tipuah, tipuah_group, dummy_year_2008, dummy_year_2009, dummy_year_2015, dummy_year_2016,
+         mean_kids_per_class_by_school_year, erets_leda_ISR)
+```
+
+
+## Split database to regress by counties 
+```{r}
+final_df_zafon_darom <- final_df %>%
+  filter(CODE_MACHOZ_GEOGRAFI == "1" | CODE_MACHOZ_GEOGRAFI == "6" | CODE_MACHOZ_GEOGRAFI == "8") 
+
+final_df_rest <- final_df %>%
+  filter(CODE_MACHOZ_GEOGRAFI == "2" | CODE_MACHOZ_GEOGRAFI == "3" | CODE_MACHOZ_GEOGRAFI == "4" | CODE_MACHOZ_GEOGRAFI == "5" | CODE_MACHOZ_GEOGRAFI == "7")
+
+```
+
+
+### regression mahoz darom + zafon only with fixed effects 
+```{r}
+FE.heb.zafon_darom <- plm(heb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_zafon_darom, model = "within", index = "CODE_MOSAD")
+summary(FE.heb.zafon_darom)
+
+FE.mat.zafon_darom <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_zafon_darom, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.zafon_darom)
+
+FE.eng.zafon_darom <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_zafon_darom, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.zafon_darom)
+
+FE.arb.zafon_darom <- plm(arb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_zafon_darom, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.zafon_darom)
+```
+
+Summary table for mahoz darom + zafon with fixed effects:
+```{r warning=FALSE}
+stargazer(FE.heb.zafon_darom, FE.mat.zafon_darom, FE.eng.zafon_darom, FE.arb.zafon_darom, title="Year & School fixed effect did regression -  north + south", align=TRUE, type = "text")
+```
+I wanted to check in the database how dose it splits by sector to see if there is a balanced obsevations from bothe Jewish And Arab sector, so I created a table: 
+```{r}
+dim(final_df_zafon_darom)
+table(final_df_zafon_darom$CODE_MIGZAR)
+```
+From the table we can see that the north and south consists of only 312 arab students observations out of 42,111. It means that the although there are plenty of arabs in the north and the south, they are not included in the definition of south and north. 
+
+### regression rest of the counties with fixed effects 
+```{r} 
+FE.arb.rest <- plm(arb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_rest, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.rest)
+
+FE.mat.rest <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_rest, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.rest)
+
+FE.eng.rest <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_rest, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.rest)
+
+FE.arb.rest <- plm(arb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_rest, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.rest)
+```
+Summary table for rest of counties with fixed effects:
+```{r warning=FALSE}
+stargazer(FE.arb.rest, FE.mat.rest, FE.eng.rest, FE.arb.rest, title="Year & School fixed effect did regression -  rest of israel", align=TRUE, type = "text")
+```
+
+
+## Adding variables to regression and regress by sectore
+### Split the data by sector
+```{r}
+final_df_heb <- final_df %>%
+  filter(CODE_MIGZAR == "1")
+final_df_arb <- final_df %>%
+  filter(CODE_MIGZAR != "1")
+```
+
+
+## Regress Jewish sector only
+### Convert factor to numeric
+```{r}
+final_df_heb$SHNOT_LIMUD_AV <- as.numeric(as.character(final_df_heb$SHNOT_LIMUD_AV))
+final_df_heb$SHNOT_LIMUD_EM <- as.numeric(as.character(final_df_heb$SHNOT_LIMUD_EM))
+```
+
+### Regression for jewish sector only 
+```{r}
+FE.heb.Hebrew.vars <- plm(heb.zscore ~ did+ CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.heb.Hebrew.vars)
+
+FE.mat.Hebrew.var <- plm(mat.zscore ~ did+ CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Hebrew.var)
+
+FE.eng.Hebrew.vars <- plm(eng.zscore ~ did + did+ CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_heb, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Hebrew.vars)
+```
+
+### Jewish sector only summary table 
+```{r warning=FALSE}
+stargazer(FE.heb.Hebrew.vars, FE.mat.Hebrew.var, FE.eng.Hebrew.vars, title="Fixed effects did regression with additional variables -  Jewish sector", align=TRUE, type = "text")
+```
+
+## Arab sector only 
+### Convert to factor
+```{r}
+final_df_arb$SHNOT_LIMUD_AV <- as.numeric(as.character(final_df_arb$SHNOT_LIMUD_AV))
+final_df_arb$SHNOT_LIMUD_EM <- as.numeric(as.character(final_df_arb$SHNOT_LIMUD_EM))
+```
+
+
+### Arab sector only regression 
+
+```{r}
+FE.arb.Arabic.vars <- plm(arb.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.Arabic.vars)
+
+FE.mat.Arabic.vars <- plm(mat.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Arabic.vars)
+
+FE.eng.Arabic.vars <- plm(eng.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arb, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Arabic.vars)
+```
+
+### Arab only summary table
+```{r warning=FALSE}
+stargazer(FE.arb.Arabic.vars, FE.mat.Arabic.vars, FE.eng.Arabic.vars, title="Fixed effects did regression with additional variables -  Arab sector", align=TRUE, type = "text")
+```
+
+
+## Regression based on language speaking schools (Different from Code_migzar) - Double check for effect by sector
+
+### Inspect language variable 
+```{r}
+table(clean_full_df$CODE_SFAT_LIMUDIM)
+```
+
+### Split data by languages
+```{r}
+names(clean_full_df)
+final_df_hebrew <- clean_full_df %>%
+  filter(CODE_SFAT_LIMUDIM == "1")
+final_df_arbic <- clean_full_df %>%
+  filter(CODE_SFAT_LIMUDIM == "2")
+```
+
+## Run Hebrew language regression 
+```{r}
+FE.heb.Hebrew.lang <- plm(heb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.heb.Hebrew.lang)
+
+FE.mat.Hebrew.lang <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Hebrew.lang)
+
+FE.eng.Hebrew.lang <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Hebrew.lang)
+```
+
+### Hebrew speaking analysis summary table
+```{r warning=FALSE}
+stargazer(FE.heb.Hebrew.lang, FE.mat.Hebrew.lang, FE.eng.Hebrew.lang, title="Year & School fixed effect did regression -  Hebrew language", align=TRUE, type = "text")
+```
+
+
+## Run Arabic language regression analysis 
+ 
+```{r}
+FE.arb.Arabic.lang <- plm(arb.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.Arabic.lang)
+
+FE.mat.Arabic.lang <- plm(mat.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Arabic.lang)
+
+FE.eng.Arabic.lang <- plm(eng.zscore ~ did + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Arabic.lang)
+```
+
+### Arabic speaking analysis summary table
+```{r warning=FALSE}
+stargazer(FE.arb.Arabic.lang, FE.mat.Arabic.lang, FE.eng.Arabic.lang, title="Year & School fixed effect did regression -  Arabic language", align=TRUE, type = "text")
+```
+# It seems like the influence is stronger for arabic sector when adding fixed effects & additional variables
+
+## Now, Run by language again with additional variables
+### Hebrew speaking 
+```{r}
+FE.heb.Hebrew.vars.lang <- plm(heb.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.heb.Hebrew.vars.lang)
+
+FE.mat.Hebrew.vars.lang <- plm(mat.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Hebrew.vars.lang)
+
+FE.eng.Hebrew.vars.lang <- plm(eng.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_hebrew, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Hebrew.vars.lang)
+```
+
+
+```{r warning=FALSE}
+stargazer(FE.heb.Hebrew.vars.lang, FE.mat.Hebrew.vars.lang, FE.eng.Hebrew.vars.lang, title="Year & School fixed effect did regression with variables -  Hebrew language", align=TRUE, type = "text")
+```
+
+### Arabic speaking 
+```{r}
+FE.arb.Arabic.vars.lang <- plm(arb.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.arb.Arabic.vars.lang)
+
+FE.mat.Arabic.vars.lang <- plm(mat.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.mat.Arabic.vars.lang)
+
+FE.eng.Arabic.vars.lang <- plm(eng.zscore ~ did + CODE_MIN + SHNOT_LIMUD_AV + SHNOT_LIMUD_EM + dummy_av_88 + dummy_em_88 + mean_tipuah + mean_kids_per_class_by_school_year + erets_leda_ISR + factor(SHNAT_LIMUD)-1, data = final_df_arbic, model = "within", index = "CODE_MOSAD")
+summary(FE.eng.Arabic.vars.lang)
+```
+
+
+```{r warning=FALSE}
+stargazer(FE.arb.Arabic.vars.lang, FE.mat.Arabic.vars.lang, FE.eng.Arabic.vars.lang, title="Year & School fixed effect did regression with variables -  Arabic language", align=TRUE, type = "text")
+```
+
