@@ -1,7 +1,3 @@
 name: "Micha's Thesis"
-navbar:
-  title: "Micha's Thesis"
-  left:
-    - text: "Home"
-      href: index.html
+href: index.html
 output_dir: "docs"
