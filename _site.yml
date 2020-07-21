@@ -1,6 +1,6 @@
 name: "Micha's Thesis"
 navbar:
-  title: "MyLabJournal"
+  title: "Micha's Thesis"
   left:
     - text: "Home"
       href: index.html
