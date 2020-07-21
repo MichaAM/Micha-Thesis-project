@@ -1,4 +1,5 @@
 name: "Micha's Thesis"
+navbar:
   title: "Micha's Thesis"
   left:
     - text: "Home"
