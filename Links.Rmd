@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{R directory & files, warning=TRUE}
-write.csv(clean_full_df, "clean_full_df.csv")
 setwd("C:/Users/user/Documents/GitHub/Micha-Thesis-project")
 clean_full_df <- read.csv("clean_full_df.csv")
 ```
