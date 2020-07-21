@@ -3,15 +3,6 @@ title: "MyLabJournal"
 output: html_document
 ---
 
-<style type="text/css">
-.title {
-  display: none;
-}
-
-#getting-started img {
-  margin-right: 10px;
-}
-
 # **Thesis Analysis results report**
 
 This is a template example for lab journaling. Students in Matt Crump's Human Cognition and Performance Lab will use this template to learn R, and other things. Students can replace this text with more fun things. People not in my lab can use this too.
